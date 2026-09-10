@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>호주 소매·외식 소비 동향 대시보드 — David Byeon</title>
+<meta name="description" content="호주통계청(ABS) 공개 API의 소매판매 데이터로 만든 인터랙티브 대시보드. 업종·주별 추이와 외식업 회복 곡선 분석.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23c99a5b'/%3E%3Ctext x='16' y='23' font-size='17' font-family='sans-serif' font-weight='bold' fill='%230d0f13' text-anchor='middle'%3ED%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+KR:wght@300;400;500;600;700&family=Playfair+Display:ital@0;1&display=swap">
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/theme-switch.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">D</span>David Byeon<em>.ai</em></a>
+    <nav class="nav">
+      <a href="../index.html#work">대표 사례</a>
+      <a href="../index.html#services">서비스</a>
+      <a href="../index.html#about">About</a>
+      <a class="nav-cta" href="../index.html#contact">문의하기</a>
+    </nav>
+  </div>
+</header>
+
+<section class="case-hero">
+  <div class="wrap">
+    <div class="breadcrumb"><a href="../index.html">홈</a> · 대표 사례</div>
+    <span class="eyebrow">Case Study 03 · Public Data</span>
+    <h1>호주 소매·외식 소비 동향</h1>
+    <p class="lede">
+      호주통계청(ABS) 공개 API에서 6년 6개월치 소매판매 데이터를 받아,
+      업종·주별 추이와 외식업의 붕괴·회복 곡선을 하나의 화면에서 읽을 수 있게 만들었습니다.
+    </p>
+    <div class="case-meta">
+      <div><b>데이터</b><span>ABS Retail Trade · 계절조정 · 경상가격</span></div>
+      <div><b>기간</b><span id="metaRange">—</span></div>
+      <div><b>스택</b><span>ABS SDMX API · Python · Chart.js</span></div>
+      <div><b>성격</b><span>공개데이터 · 회사 데이터 미포함</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="dash" style="padding-top:56px;">
+
+  <div class="note" style="margin-top:0;">
+    <b>왜 이 사례를 만들었나.</b> 앞의 두 사례는 재직 중 업무에서 나온 것이라, 회사 데이터를
+    쓸 수 없다는 제약이 있었습니다. 이 대시보드는 <b>누구나 검증할 수 있는 공개 데이터만</b> 사용해
+    같은 역량을 처음부터 끝까지 보여주기 위해 만들었습니다. 아래 모든 숫자는 ABS API에서 직접
+    받아 계산한 실제 값입니다.
+  </div>
+
+  <div class="kpi-grid" id="kpis"></div>
+
+  <div class="chart-card">
+    <h3>1. 호주 전체 소매판매액 추이</h3>
+    <p class="sub">월간 · 계절조정 · 단위 백만 AUD</p>
+    <div class="chart-box"><canvas id="c1"></canvas></div>
+  </div>
+
+  <div class="chart-card">
+    <h3>2. 전체 소매 vs 외식·테이크아웃 — 같은 출발선에서 비교</h3>
+    <p class="sub">2019년 1월 = 100 으로 지수화 (두 지표의 규모 차이를 제거하고 '모양'만 비교)</p>
+    <div class="legend-row">
+      <span class="lg" style="color:var(--series-1)"><i style="background:currentColor"></i><span style="color:var(--text-2)">전체 소매 (실선)</span></span>
+      <span class="lg" style="color:var(--series-2)"><i class="dash-mark"></i><span style="color:var(--text-2)">외식·테이크아웃 (점선)</span></span>
+    </div>
+    <div class="chart-box tall"><canvas id="c2"></canvas></div>
+    <p class="src-note" id="covidNote" style="margin-top:14px;"></p>
+  </div>
+
+  <div class="chart-card">
+    <h3>3. 업종별 전년 동월 대비 성장률</h3>
+    <p class="sub">최신 월 기준 · 단위 %</p>
+    <div class="chart-box"><canvas id="c3"></canvas></div>
+  </div>
+
+  <div class="chart-card">
+    <h3>4. 주(State)별 소매판매 규모</h3>
+    <p class="sub">최신 월 · 단위 백만 AUD · 막대 옆 숫자는 전년 동월 대비 증감률</p>
+    <div class="chart-box tall"><canvas id="c4"></canvas></div>
+  </div>
+
+  <details class="table-view">
+    <summary>표로 보기 (업종·주별 원자료)</summary>
+    <div id="tables"></div>
+  </details>
+
+</div>
+
+<article class="case" style="padding-top:20px;">
+
+  <h2>데이터에서 읽히는 것</h2>
+  <p id="insight1"></p>
+  <p id="insight2"></p>
+  <p>
+    실무적으로 더 중요한 함의가 하나 있습니다. 외식업 매출은 전체 소매보다 <b>훨씬 크게 흔들립니다</b>.
+    같은 경기 변동에도 진폭이 다르다는 뜻이고, 외식 업종을 고객으로 두는 사업(식자재·주방설비·프랜차이즈
+    공급 등)은 전체 소매 지표만 보고 수요를 예측하면 어긋나기 쉽습니다. 지표를 하나 더 봐야 하는
+    이유가 여기 있습니다.
+  </p>
+
+  <h2>만드는 과정</h2>
+  <ul>
+    <li><b>수집</b> — ABS SDMX API에서 계절조정·경상가격 시리즈를 CSV로 직접 조회 (업종 23종 × 지역 9개 × 78개월, 약 15,000행)</li>
+    <li><b>가공</b> — Python으로 국가 합계·업종별·주별 슬라이스를 만들고 전년 동월비와 지수(2019-01=100)를 계산, 4KB JSON으로 축약</li>
+    <li><b>시각화</b> — Chart.js. 지표 규모가 다른 두 시리즈는 <b>이중 축을 쓰지 않고</b> 공통 기준으로 지수화해 한 축에서 비교</li>
+    <li><b>접근성</b> — 색상만으로 계열을 구분하지 않도록 점선/직접 라벨을 함께 사용하고, 원자료 표를 함께 제공</li>
+  </ul>
+
+  <h2>방법론과 한계 (솔직하게)</h2>
+  <ul>
+    <li><b>시리즈 종료</b> — 이 ABS 시리즈는 <span id="lastObs">최신 관측치</span>를 끝으로 공표가 종료되었습니다. 후속 지표(월간 가계지출 지표 등)로 이어서 봐야 하며, 이 대시보드는 종료 시점까지의 확정 데이터를 다룹니다.</li>
+    <li><b>경상가격</b> — 물가 조정을 하지 않은 명목 금액입니다. 성장률에는 가격 상승분이 포함되어 있어, 물량 증가와 분리해 읽어야 합니다.</li>
+    <li><b>계절조정 시리즈</b> — 명절·계절 효과가 제거된 값이라 원계열과는 다릅니다. 월별 비교에는 이 시리즈가 적합합니다.</li>
+    <li><b>차트 색상</b> — 브랜드 강조색은 채도가 낮아 차트 계열색으로는 부적합했습니다. 색각 이상 구분도(ΔE)·명도 대역·배경 대비를 검증한 별도 2색을 사용했고, 라이트/다크 테마 양쪽에서 통과한 값입니다.</li>
+  </ul>
+
+  <p class="src-note" id="srcNote"></p>
+
+  <div class="next-case">
+    <span>다른 사례</span>
+    <span style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a class="btn btn-ghost btn-sm" href="data-pipeline.html">← AI 데이터 파이프라인</a>
+      <a class="btn btn-ghost btn-sm" href="powerbi-dashboard.html">자동 갱신 대시보드 →</a>
+    </span>
+  </div>
+
+</article>
+
+<footer class="site">
+  <div class="wrap" style="align-items:flex-start;">
+    <div style="max-width:62ch;">
+      <span class="fine">© 2026 David Byeon · Melbourne, Australia</span>
+      <p class="fine" style="margin:8px 0 0;line-height:1.6;">
+        이 페이지의 데이터는 호주통계청(ABS) 공개 API에서 받은 것이며, 어떤 회사의 내부 데이터도 포함하지 않습니다.
+      </p>
+    </div>
+    <div class="foot-links">
+      <a href="../design.html">디자인 미리보기</a>
+      <a href="https://github.com/davidbyeonai-studio" target="_blank" rel="noopener">GitHub</a>
+      <a href="mailto:davidbyeon.ai@gmail.com">Email</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+const DATA = {"meta":{"source":"ABS Retail Trade (dataflow ABS,RT,1.0.0) — seasonally adjusted, current prices","api":"https://data.api.abs.gov.au/rest/data/ABS,RT,1.0.0","range":"2019-01 ~ 2025-06","latest":"2025-06","note":"이 시리즈는 2025-06 관측치를 끝으로 공표가 종료되었습니다."},"kpi":{"totalLatest":37906.6,"totalYoY":4.9,"foodLatest":5581.6,"foodYoY":3.3,"foodShare":14.7},"periods":["2019-01","2019-02","2019-03","2019-04","2019-05","2019-06","2019-07","2019-08","2019-09","2019-10","2019-11","2019-12","2020-01","2020-02","2020-03","2020-04","2020-05","2020-06","2020-07","2020-08","2020-09","2020-10","2020-11","2020-12","2021-01","2021-02","2021-03","2021-04","2021-05","2021-06","2021-07","2021-08","2021-09","2021-10","2021-11","2021-12","2022-01","2022-02","2022-03","2022-04","2022-05","2022-06","2022-07","2022-08","2022-09","2022-10","2022-11","2022-12","2023-01","2023-02","2023-03","2023-04","2023-05","2023-06","2023-07","2023-08","2023-09","2023-10","2023-11","2023-12","2024-01","2024-02","2024-03","2024-04","2024-05","2024-06","2024-07","2024-08","2024-09","2024-10","2024-11","2024-12","2025-01","2025-02","2025-03","2025-04","2025-05","2025-06"],"totalSeries":[27208.4,27307.3,27290.9,27170.9,27314.5,27379.0,27399.6,27543.8,27583.0,27692.7,27635.8,27943.3,27858.1,27847.4,29931.0,24829.5,28808.0,29594.3,30799.4,29488.6,29119.1,29706.9,31196.0,30882.9,30790.7,30412.8,30621.7,30986.8,30988.1,30542.5,29789.7,29219.8,29732.9,31222.5,32747.4,32521.3,32794.8,33172.9,33561.8,33925.0,34079.6,34361.9,34706.4,34816.2,35008.8,35119.8,35194.6,34972.4,35343.8,35314.2,35425.2,35403.6,35494.0,35152.1,35360.6,35393.6,35681.1,35523.0,35909.2,35320.7,35688.9,35864.8,35729.1,35893.0,36188.8,36146.8,36209.4,36478.2,36547.0,36749.7,36967.4,36927.5,37107.1,37150.7,37265.7,37269.7,37457.6,37906.6],"indexed":{"total":[100.0,100.4,100.3,99.9,100.4,100.6,100.7,101.2,101.4,101.8,101.6,102.7,102.4,102.3,110.0,91.3,105.9,108.8,113.2,108.4,107.0,109.2,114.7,113.5,113.2,111.8,112.5,113.9,113.9,112.3,109.5,107.4,109.3,114.8,120.4,119.5,120.5,121.9,123.4,124.7,125.3,126.3,127.6,128.0,128.7,129.1,129.4,128.5,129.9,129.8,130.2,130.1,130.5,129.2,130.0,130.1,131.1,130.6,132.0,129.8,131.2,131.8,131.3,131.9,133.0,132.9,133.1,134.1,134.3,135.1,135.9,135.7,136.4,136.5,137.0,137.0,137.7,139.3],"food":[100.0,99.7,100.5,99.6,99.6,100.5,100.0,100.1,100.3,100.5,101.5,101.7,101.9,101.7,77.6,50.3,65.0,83.4,87.8,82.8,84.9,89.6,95.5,99.6,99.6,99.5,103.2,105.6,105.7,99.3,87.5,81.9,86.0,97.2,105.4,107.0,106.5,115.3,116.8,120.5,122.6,126.4,127.8,129.2,131.0,132.2,132.6,133.0,134.8,135.1,137.1,136.5,137.7,137.6,139.2,139.3,138.6,138.1,138.2,135.6,138.1,138.8,138.7,139.1,139.0,139.0,138.9,140.1,141.1,141.0,143.0,142.0,143.3,143.4,142.5,144.1,144.3,143.7]},"categories":[{"name":"식품 소매","latest":14995.5,"yoy":4.0},{"name":"가정용품","latest":6129.0,"yoy":5.6},{"name":"의류·신발","latest":3160.4,"yoy":6.0},{"name":"백화점","latest":1987.7,"yoy":5.9},{"name":"기타 소매","latest":6052.4,"yoy":6.9},{"name":"외식·테이크아웃","latest":5581.6,"yoy":3.3}],"states":[{"name":"NSW","latest":11665.8,"yoy":4.1},{"name":"VIC","latest":9833.3,"yoy":5.8},{"name":"QLD","latest":7849.1,"yoy":5.5},{"name":"WA","latest":4345.7,"yoy":5.3},{"name":"SA","latest":2426.3,"yoy":4.1},{"name":"TAS","latest":741.0,"yoy":2.3},{"name":"ACT","latest":699.9,"yoy":2.7},{"name":"NT","latest":345.5,"yoy":3.4}],"covid":{"troughPeriod":"2020-04","troughDropPct":-50.7,"recoveredBy":"2021-03"}};
+
+(function(){
+  const cs = getComputedStyle(document.documentElement);
+  const tok = n => cs.getPropertyValue(n).trim();
+  const S1 = tok("--series-1") || "#bd7f22";
+  const S2 = tok("--series-2") || "#4a86c8";
+  const ink = tok("--text-1"), ink2 = tok("--text-2"), ink3 = tok("--text-3");
+  const line = tok("--border"), surface = tok("--surface");
+  const font = "Inter, 'Noto Sans KR', sans-serif";
+
+  const fmt = n => n.toLocaleString("en-AU", { maximumFractionDigits: 0 });
+  const pct = n => (n > 0 ? "+" : "") + n.toFixed(1) + "%";
+  const label = p => { const [y, m] = p.split("-"); return y.slice(2) + "년 " + Number(m) + "월"; };
+
+  Chart.defaults.font.family = font;
+  Chart.defaults.color = ink3;
+  Chart.defaults.plugins.tooltip.backgroundColor = surface;
+  Chart.defaults.plugins.tooltip.titleColor = ink;
+  Chart.defaults.plugins.tooltip.bodyColor = ink2;
+  Chart.defaults.plugins.tooltip.borderColor = line;
+  Chart.defaults.plugins.tooltip.borderWidth = 1;
+  Chart.defaults.plugins.tooltip.padding = 11;
+  Chart.defaults.plugins.tooltip.displayColors = false;
+  Chart.defaults.plugins.legend.display = false;
+  Chart.defaults.maintainAspectRatio = false;
+
+  const axis = (extra = {}) => Object.assign({
+    grid: { color: line, drawTicks: false },
+    border: { display: false },
+    ticks: { color: ink3, font: { size: 11 }, padding: 8 }
+  }, extra);
+
+  /* ---- meta + KPI tiles ---------------------------------------------- */
+  document.getElementById("metaRange").textContent = DATA.meta.range;
+  document.getElementById("lastObs").textContent = DATA.meta.latest;
+  document.getElementById("srcNote").innerHTML =
+    "출처: " + DATA.meta.source + "<br>API: <a href='" + DATA.meta.api +
+    "' target='_blank' rel='noopener'>" + DATA.meta.api + "</a>";
+
+  const k = DATA.kpi;
+  document.getElementById("kpis").innerHTML = [
+    ["최신 월 소매판매액", "$" + fmt(k.totalLatest) + "M", DATA.meta.latest + " · 계절조정"],
+    ["전년 동월 대비", pct(k.totalYoY), "전체 소매"],
+    ["외식·테이크아웃", "$" + fmt(k.foodLatest) + "M", "소매 전체의 " + k.foodShare + "%"],
+    ["외식 전년 동월 대비", pct(k.foodYoY), "전체 소매보다 " + (k.foodYoY < k.totalYoY ? "낮음" : "높음")]
+  ].map(([t, v, d]) =>
+    '<div class="kpi-tile"><div class="k">' + t + '</div><div class="v">' + v +
+    '</div><div class="d">' + d + '</div></div>').join("");
+
+  /* ---- 1. total turnover over time ----------------------------------- */
+  new Chart(document.getElementById("c1"), {
+    type: "line",
+    data: {
+      labels: DATA.periods,
+      datasets: [{
+        data: DATA.totalSeries,
+        borderColor: S1, borderWidth: 2, tension: .25,
+        pointRadius: 0, pointHoverRadius: 5,
+        pointHoverBackgroundColor: S1, pointHoverBorderColor: surface, pointHoverBorderWidth: 2,
+        fill: true,
+        backgroundColor: (ctx) => {
+          const { chartArea, ctx: c } = ctx.chart;
+          if (!chartArea) return "transparent";
+          const g = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          g.addColorStop(0, S1 + "3d"); g.addColorStop(1, S1 + "00");
+          return g;
+        }
+      }]
+    },
+    options: {
+      interaction: { mode: "index", intersect: false },
+      plugins: { tooltip: { callbacks: {
+        title: i => label(i[0].label),
+        label: i => "$" + fmt(i.parsed.y) + "M"
+      }}},
+      scales: {
+        x: axis({ ticks: { color: ink3, font: { size: 11 }, maxRotation: 0, autoSkip: false,
+                  callback(v) { const p = this.getLabelForValue(v); return p.endsWith("-01") ? p.slice(0, 4) : ""; } },
+                  grid: { display: false } }),
+        y: axis({ ticks: { color: ink3, font: { size: 11 }, padding: 8, callback: v => "$" + (v / 1000).toFixed(0) + "B" } })
+      }
+    }
+  });
+
+  /* ---- 2. indexed comparison (single axis, no dual-axis) ------------- */
+  new Chart(document.getElementById("c2"), {
+    type: "line",
+    data: {
+      labels: DATA.periods,
+      datasets: [
+        { label: "전체 소매", data: DATA.indexed.total, borderColor: S1, borderWidth: 2, tension: .25,
+          pointRadius: 0, pointHoverRadius: 5, pointHoverBorderColor: surface, pointHoverBorderWidth: 2 },
+        { label: "외식·테이크아웃", data: DATA.indexed.food, borderColor: S2, borderWidth: 2, tension: .25,
+          borderDash: [6, 4], pointRadius: 0, pointHoverRadius: 5,
+          pointHoverBorderColor: surface, pointHoverBorderWidth: 2 }
+      ]
+    },
+    options: {
+      interaction: { mode: "index", intersect: false },
+      plugins: { tooltip: { displayColors: true, callbacks: {
+        title: i => label(i[0].label),
+        label: i => i.dataset.label + "  " + i.parsed.y.toFixed(0)
+      }}},
+      scales: {
+        x: axis({ ticks: { color: ink3, font: { size: 11 }, maxRotation: 0, autoSkip: false,
+                  callback(v) { const p = this.getLabelForValue(v); return p.endsWith("-01") ? p.slice(0, 4) : ""; } },
+                  grid: { display: false } }),
+        y: axis({ ticks: { color: ink3, font: { size: 11 }, padding: 8, callback: v => v } })
+      }
+    }
+  });
+
+  /* ---- 3. YoY by category (horizontal bars, zero baseline) ----------- */
+  new Chart(document.getElementById("c3"), {
+    type: "bar",
+    data: {
+      labels: DATA.categories.map(c => c.name),
+      datasets: [{
+        data: DATA.categories.map(c => c.yoy),
+        backgroundColor: S1, borderRadius: { topRight: 4, bottomRight: 4 },
+        borderSkipped: "left", barPercentage: .72, categoryPercentage: .82
+      }]
+    },
+    options: {
+      indexAxis: "y",
+      plugins: { tooltip: { callbacks: {
+        title: i => i[0].label,
+        label: i => "전년 동월 대비 " + pct(i.parsed.x)
+      }}},
+      scales: {
+        x: axis({ beginAtZero: true, ticks: { color: ink3, font: { size: 11 }, padding: 8, callback: v => v + "%" } }),
+        y: axis({ grid: { display: false }, ticks: { color: ink2, font: { size: 12 } } })
+      }
+    }
+  });
+
+  /* ---- 4. state turnover (magnitude bars + YoY as text, one axis) ---- */
+  new Chart(document.getElementById("c4"), {
+    type: "bar",
+    data: {
+      labels: DATA.states.map(s => s.name),
+      datasets: [{
+        data: DATA.states.map(s => s.latest),
+        backgroundColor: S1, borderRadius: { topRight: 4, bottomRight: 4 },
+        borderSkipped: "left", barPercentage: .72, categoryPercentage: .82
+      }]
+    },
+    options: {
+      indexAxis: "y",
+      layout: { padding: { right: 62 } },
+      plugins: {
+        tooltip: { callbacks: {
+          title: i => i[0].label,
+          label: i => "$" + fmt(i.parsed.x) + "M · 전년비 " + pct(DATA.states[i.dataIndex].yoy)
+        }}
+      },
+      scales: {
+        x: axis({ beginAtZero: true, ticks: { color: ink3, font: { size: 11 }, padding: 8, callback: v => "$" + fmt(v / 1000) + "B" } }),
+        y: axis({ grid: { display: false }, ticks: { color: ink2, font: { size: 12 } } })
+      }
+    },
+    plugins: [{
+      id: "yoyLabels",
+      afterDatasetsDraw(chart) {
+        const { ctx: c } = chart;
+        c.save();
+        c.font = "600 11px " + font;
+        c.fillStyle = ink2;
+        c.textBaseline = "middle";
+        chart.getDatasetMeta(0).data.forEach((bar, i) => {
+          c.fillText(pct(DATA.states[i].yoy), bar.x + 10, bar.y);
+        });
+        c.restore();
+      }
+    }]
+  });
+
+  /* ---- narrative computed from the data ------------------------------ */
+  const cv = DATA.covid;
+  document.getElementById("covidNote").innerHTML =
+    "2020년 봉쇄 국면에서 외식·테이크아웃은 <b>" + cv.troughPeriod + "에 " +
+    Math.abs(cv.troughDropPct).toFixed(1) + "% 급감</b>(2020년 1월 대비)했고, " +
+    (cv.recoveredBy ? "<b>" + cv.recoveredBy + "</b>에 봉쇄 이전 수준을 회복했습니다." : "회복 시점이 관측 구간 안에 없습니다.");
+
+  const top = DATA.categories.slice().sort((a, b) => b.yoy - a.yoy)[0];
+  const bot = DATA.categories.slice().sort((a, b) => a.yoy - b.yoy)[0];
+  document.getElementById("insight1").innerHTML =
+    "최신 월(" + DATA.meta.latest + ") 호주 소매판매액은 <b>$" + fmt(k.totalLatest) +
+    "M</b>, 전년 동월 대비 <b>" + pct(k.totalYoY) + "</b>입니다. 업종별로는 <b>" + top.name +
+    "</b>이 " + pct(top.yoy) + "로 가장 빠르게, <b>" + bot.name + "</b>이 " + pct(bot.yoy) +
+    "로 가장 느리게 늘었습니다.";
+  document.getElementById("insight2").innerHTML =
+    "외식·테이크아웃은 소매 전체의 <b>" + k.foodShare + "%</b>를 차지하며, 전년비 " + pct(k.foodYoY) +
+    "로 전체 평균(" + pct(k.totalYoY) + ")보다 " + (k.foodYoY < k.totalYoY ? "낮습니다" : "높습니다") +
+    ". 다만 2번 차트를 보면 이 업종의 <b>변동 폭 자체가 전체 소매와 비교가 되지 않을 만큼 큽니다</b> — " +
+    "봉쇄 때 반토막이 났고, 회복 후에는 더 빠르게 올라왔습니다.";
+
+  /* ---- table view (accessibility / verification) --------------------- */
+  const tbl = (cap, rows, unit) =>
+    '<table><caption class="src-note" style="text-align:left;padding:10px 0;">' + cap + '</caption><thead><tr>' +
+    '<th>구분</th><th>' + unit + '</th><th>전년 동월비</th></tr></thead><tbody>' +
+    rows.map(r => '<tr><td>' + r.name + '</td><td>' + fmt(r.latest) + '</td><td>' + pct(r.yoy) + '</td></tr>').join("") +
+    '</tbody></table>';
+  document.getElementById("tables").innerHTML =
+    tbl("업종별 (" + DATA.meta.latest + ", 백만 AUD)", DATA.categories, "판매액") +
+    tbl("주별 (" + DATA.meta.latest + ", 백만 AUD)", DATA.states, "판매액");
+})();
+</script>
+
+</body>
+</html>
